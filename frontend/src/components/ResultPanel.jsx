@@ -108,7 +108,7 @@ export default function ResultPanel({ results }) {
   const banner = banners[outcome.status];
 
   return (
-    <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden animate-fade-in">
+    <div className="surface-card result-card bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden animate-fade-in">
       <div className={`${banner.classes} border-b px-6 py-5`}>
         <h2 className="text-lg font-bold">{banner.title}</h2>
         <p className="text-sm">{banner.description}</p>

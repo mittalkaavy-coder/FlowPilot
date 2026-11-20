@@ -5,7 +5,7 @@ export default function ApprovalBar({ onApprove, onCancel, disabled, isExecuting
   const isApproveDisabled = disabled || isExecuting || isApproving || !canApprove;
 
   return (
-    <div className="sticky bottom-0 z-10 bg-white border-t border-gray-200 shadow-lg rounded-b-xl">
+    <div className="approval-bar sticky bottom-0 z-10 bg-white border-t border-gray-200 shadow-lg rounded-b-xl">
       <div className="max-w-3xl mx-auto px-4 py-4 flex items-center justify-between gap-4">
         {/* Warning text */}
         <p className="text-sm text-amber-700 flex items-center gap-2 flex-1 min-w-0">

@@ -88,7 +88,7 @@ export default function PlanViewer({ plan }) {
   const { plan_id: planId, goal, steps } = normalized;
 
   return (
-    <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6 animate-fade-in">
+    <div className="surface-card plan-card bg-white rounded-xl border border-gray-200 shadow-sm p-6 animate-fade-in">
       {/* Header */}
       <div className="flex items-center gap-3 mb-5">
         {/* Brain icon */}
@@ -122,11 +122,11 @@ export default function PlanViewer({ plan }) {
       </div>
 
       {/* Steps */}
-      <div className="space-y-3">
+      <ol className="plan-steps space-y-3">
         {steps.map((step, idx) => (
-          <StepCard key={`${step.tool || 'step'}-${step.step_number || idx + 1}`} step={step} />
+          <li key={`${step.tool || 'step'}-${step.step_number || idx + 1}`}><StepCard step={step} /></li>
         ))}
-      </div>
+      </ol>
     </div>
   );
 }

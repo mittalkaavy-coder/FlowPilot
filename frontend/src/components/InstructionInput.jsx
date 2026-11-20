@@ -6,7 +6,7 @@ export default function InstructionInput({ value, onChange, onSubmit, isLoading,
   const remaining = MAX_CHARS - value.length;
 
   return (
-    <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6 animate-fade-in">
+    <div className="surface-card instruction-card bg-white rounded-xl border border-gray-200 shadow-sm p-6 animate-fade-in">
       <label className="block text-base font-semibold text-gray-800 mb-3">
         Describe your workflow
       </label>

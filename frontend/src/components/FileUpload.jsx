@@ -8,7 +8,7 @@ export default function FileUpload({ onUpload, fileInfo, isLoading, onError }) {
 
   if (isLoading) {
     return (
-      <div className="bg-white rounded-xl border border-blue-200 shadow-sm p-10 flex flex-col items-center justify-center animate-pulse">
+      <div className="upload-card upload-loading bg-white rounded-xl border border-blue-200 shadow-sm p-10 flex flex-col items-center justify-center animate-pulse">
         <div className="animate-spin w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full mb-4" />
         <p className="text-gray-700 font-medium">Validating and uploading CSV…</p>
         <p className="text-xs text-gray-400 mt-1">Inspecting tabular structure and columns</p>
@@ -18,7 +18,7 @@ export default function FileUpload({ onUpload, fileInfo, isLoading, onError }) {
 
   if (fileInfo) {
     return (
-      <div className="bg-white rounded-xl border border-green-200 shadow-sm p-6 animate-fade-in">
+      <div className="upload-card uploaded-card bg-white rounded-xl border border-green-200 shadow-sm p-6 animate-fade-in">
         <div className="flex items-center gap-4">
           {/* Green checkmark icon */}
           <div className="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
@@ -53,7 +53,7 @@ export default function FileUpload({ onUpload, fileInfo, isLoading, onError }) {
 
   return (
     <div
-      className={`bg-white rounded-xl border-2 border-dashed shadow-sm p-10 flex flex-col items-center justify-center cursor-pointer transition-colors ${
+      className={`upload-card upload-dropzone bg-white rounded-xl border-2 border-dashed shadow-sm p-10 flex flex-col items-center justify-center cursor-pointer transition-colors ${
         isDragging
           ? 'border-blue-500 bg-blue-50'
           : 'border-gray-300 hover:border-blue-400 hover:bg-gray-50'
@@ -62,6 +62,15 @@ export default function FileUpload({ onUpload, fileInfo, isLoading, onError }) {
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
       onClick={() => inputRef.current?.click()}
+      role="button"
+      tabIndex={0}
+      aria-label="Upload a CSV file"
+      onKeyDown={(event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          inputRef.current?.click();
+        }
+      }}
     >
       <input
         ref={inputRef}
