@@ -6,7 +6,7 @@ import uuid
 import pytest
 from alembic import command
 from alembic.config import Config
-from sqlalchemy import create_engine, event, func, select
+from sqlalchemy import create_engine, event, func, inspect, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import sessionmaker
 
@@ -49,7 +49,7 @@ def _alembic_config(database_url: str) -> Config:
 
 
 def test_alembic_upgrade_from_empty_database_and_repeat_is_idempotent(tmp_path, monkeypatch):
-    database_url = f"sqlite:///{tmp_path / 'empty-postgres-schema-test.db'}"
+    database_url = f"sqlite:///{tmp_path / 'disposable-empty-schema.db'}"
     monkeypatch.setattr(settings, "database_url", database_url)
     config = _alembic_config(database_url)
 
@@ -66,7 +66,47 @@ def test_alembic_upgrade_from_empty_database_and_repeat_is_idempotent(tmp_path, 
         engine.dispose()
 
 
-def _write_legacy_copy(tmp_path):
+def test_alembic_downgrade_refuses_data_then_succeeds_when_empty(tmp_path, monkeypatch):
+    database_url = f"sqlite:///{tmp_path / 'disposable-downgrade-safety.db'}"
+    monkeypatch.setattr(settings, "database_url", database_url)
+    config = _alembic_config(database_url)
+
+    command.upgrade(config, "head")
+    engine = create_engine(database_url)
+    try:
+        with engine.begin() as connection:
+            test_user_id = uuid.uuid4()
+            connection.execute(
+                User.__table__.insert().values(
+                    id=test_user_id, oidc_issuer="https://idp.example.test",
+                    oidc_subject="downgrade-safety-test",
+                )
+            )
+            connection.execute(
+                Upload.__table__.insert().values(
+                    file_id=uuid.uuid4(), owner_id=test_user_id,
+                    storage_key="downgrade-safety-test/upload.csv", byte_size=1,
+                )
+            )
+
+        with pytest.raises(RuntimeError, match="Refusing to drop"):
+            command.downgrade(config, "base")
+
+        with engine.connect() as connection:
+            assert connection.execute(select(func.count()).select_from(User)).scalar_one() == 2
+
+        with engine.begin() as connection:
+            connection.execute(Upload.__table__.delete().where(Upload.storage_key == "downgrade-safety-test/upload.csv"))
+            connection.execute(User.__table__.delete().where(User.oidc_subject == "downgrade-safety-test"))
+
+        command.downgrade(config, "base")
+        with engine.connect() as connection:
+            assert "users" not in inspect(connection).get_table_names()
+    finally:
+        engine.dispose()
+
+
+def _write_legacy_copy(tmp_path, status="completed"):
     source_root = tmp_path / "legacy-source"
     (source_root / "uploads").mkdir(parents=True)
     (source_root / "reports").mkdir()
@@ -105,9 +145,32 @@ def _write_legacy_copy(tmp_path):
         )
         connection.execute(
             "INSERT INTO plans VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-            (str(plan_id), str(file_id), "Legacy test", json.dumps(plan_json), "completed", 1_700_000_000.0, 1_700_000_001.0, json.dumps(result), None),
+            (str(plan_id), str(file_id), "Legacy test", json.dumps(plan_json), status, 1_700_000_000.0, 1_700_000_001.0, json.dumps(result), None),
         )
     return legacy_db, source_root, file_id, plan_id, report_id, upload, report
+
+
+@pytest.mark.parametrize("status", ["created", "approved", "executing", "completed", "failed"])
+def test_legacy_import_preserves_each_supported_plan_state(sqlite_engine, tmp_path, status):
+    _, factory = sqlite_engine
+    legacy_db, source_root, file_id, plan_id, report_id, _, _ = _write_legacy_copy(tmp_path, status)
+
+    counts = import_legacy_snapshot(
+        source_db=legacy_db,
+        source_storage_root=source_root,
+        target_storage_root=tmp_path / "isolated-import-target",
+        session_factory=factory,
+        active_sqlite_db=tmp_path / "active-flowpilot.sqlite3",
+    )
+
+    assert counts == {"plans": 1, "uploads": 1, "reports": 1, "files_copied": 2}
+    with factory() as session:
+        imported_plan = session.get(Plan, plan_id)
+        imported_report = session.get(Report, report_id)
+        assert imported_plan.status == status
+        assert imported_plan.owner_id == LEGACY_OWNER_ID
+        assert imported_report.plan_id == plan_id
+        assert imported_report.verified is (status == "completed")
 
 
 def test_legacy_snapshot_import_is_idempotent_and_preserves_source(sqlite_engine, tmp_path):
